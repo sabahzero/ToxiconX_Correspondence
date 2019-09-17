@@ -4,130 +4,113 @@ author: "Ul-Hasan et al"
 output: word_document
 ---
 
-Contributors to literature review (by order): SU, ERR, VH, TJC, CNK, SAT, SAM  
+Contributors to literature review (by order): SU, ERR, TJC, VH, SAT, SAM, CNK, EES, AJS, AMR
 Contributors to code: SU 
 
 Methods:
-Web of Science search of all 71,738,518 peer-reviewed publications
-TITLE: (venom* AND microb*) OR TITLE: (venom* AND bacteria*) OR TITLE: (venom* AND fungi*) OR TITLE: (venom* AND virus*)
+
+Web of Science search of all 73,038,152 peer-reviewed publications
+TITLE: (venom* AND microb*) OR TITLE: (venom* AND bacteri*) OR TITLE: (venom* AND fung*) OR TITLE: (venom* AND virus*)
+
 Timespan=All years. Indexes=SCI-EXPANDED, SSCI, A&HCI, CPCI-S, CPCI-SSH, BKCI-S, BKCI-SSH, ESCI, CCR-EXPANDED, IC.
 
-Results                       129 hits
-  Abstract removed            2 (127 included in analysis)
-Sum of the Times Cited        1833
-Average Citations per Item    14.21
-h-index                       23
 
-Microbe, Topic, and Animal columns were added manually
+Results:                       159 hits (140 in analysis)
+  Corrections removed           2
+  News articles removed         2
+  Abstract removed              15 
+  Irrelevant articles           14 (see line 98)
+> Create Citation Report > Export Data (Save to Excel File) > Delete first 28 rows (manually) > Create "Article" column to number all articles > Save as .csv for processing
+  
+Sum of the Times Cited        2589
+Average Citations per Item    18.49
+h-index                       29
 
-Upload Web of Science search output, clean-up, Figure 1a-c
+Upload Web of Science search output and clean-up
 ```{r}
 
-# Upload data
-# setwd("~/Desktop/MS_iVAMP-Correspondence/ToxiconX_Correspondence-Final") # update to Github repo when final (after reviews)
-Raw = read.csv("Supp_Tab1_Web-of-Science_Raw-Feb10-2019.csv")
+### Upload data
+# install.packages("RCurl")
+library("RCurl") # package needed for downloading data from Github repo
+# packageVersion("RCurl") # v1.95.4.12 
 
-# install.packages("wordcloud")
-library(wordcloud)
-# packageVersion("wordcloud") # v2.6
+Raw <- read.csv(text=getURL("https://raw.githubusercontent.com/ivamp-consortium/ToxiconX_Correspondence/master/Web-of-Science_Raw-Jun22-2019.csv"))
 
-# Figure 1a: Microbe categories
-Microbe = wordcloud(Raw$Microbe) 
-Microbe # None category are studies with term 'microb*' that refer to wasp microbracon
-dev.copy(png, "Figure1a_Microbe_127-articles.png")
-dev.off() 
-
-# Remove all articles for "none" category
-Microbe_only = subset(Raw, !(Raw$Microbe=="none")) # 17 articles removed (110 remain)
-# Figure 1b: Article topic
-Topic = wordcloud(Microbe_only$Topic) 
-Topic # 77 antimicrobial, 11 symbiosis
-dev.copy(png, "Figure1b_Topic_110-articles.png")
-dev.off() 
-
-(77/110)*100 # 70 % antimicrobial
-(11/110)*100 # 10 % symbiosis
-
-# Figure 1c: Animal of origin
-Animal = wordcloud(Microbe_only$Animal) 
-Animal # 77 antimicrobial, 11 symbiosis
-dev.copy(png, "Figure1c_Animal_110-articles.png")
-dev.off() 
-
-(58/110)*100 # 53 % from snakes, 47% from intevertebrates
-
-```
-
-Superfluous Analyses
-```{r}
+### Process Raw to Clean data
+# Make the following columns all lower case
+Raw$Title <- tolower(Raw$Title) 
+Raw$Authors <- tolower(Raw$Authors)
+Raw$Book.Editors <- tolower(Raw$Book.Editors)
+Raw$Source.Title <- tolower(Raw$Source.Title)
 
 # install.packages("tidyverse")
 library(tidyverse)
 # packageVersion("tidyverse") # v1.2.1
 
-# install.packages("tidytext")
-library(tidytext)
-# packageVersion("tidytext") # v0.2.0
+# Add an Article column that numbers each row incrementally
+Raw <- tibble::rowid_to_column(Raw, "Article")
 
-# install.packages("tm")
-library(tm)
-# packageVersion("tm") # v0.7.6
-
-# install.packages("slam")
-library(slam)
-# packageVersion("slam") # v0.1.44
-
-# Make the following columns all lower case
-Raw$Title = tolower(Raw$Title) 
-Raw$Authors = tolower(Raw$Authors)
-Raw$Book_Editors = tolower(Raw$Book_Editors)
-Raw$Source_Title = tolower(Raw$Source_Title)
 # Remove punctuation from these 
-Title = Raw$Title %>%
+Title <- Raw$Title %>%
   str_replace_all('[^a-z0-9]+', ' ')
-Title = data.frame(Title)
-Authors = Raw$Authors %>%
+Title <- data.frame(Title)
+Authors <- Raw$Authors %>%
   str_replace_all('[^a-z0-9]+', ' ')
-Authors = data.frame(Authors)
-Book_Editors = Raw$Book_Editors %>%
+Authors <- data.frame(Authors)
+Book.Editors <- Raw$Book.Editors %>%
   str_replace_all('[^a-z0-9]+', ' ')
-Book_Editors = data.frame(Book_Editors)
-Source_Title = Raw$Source_Title %>%
+Book.Editors <- data.frame(Book.Editors)
+Source.Title <- Raw$Source.Title %>%
   str_replace_all('[^a-z0-9]+', ' ')
-Source_Title = data.frame(Source_Title)
+Source.Title <- data.frame(Source.Title)
 
-NoPunc = cbind(Title, Authors, Book_Editors, Source_Title)
-NoPunc$Article = Raw$Article
-NoPunc_Annot = merge(NoPunc, Raw, by = "Article")
-NoPunc_Annot = NoPunc_Annot[,-c(6:9)] # drops columns with punctuation
+NoPunc <- cbind(Title, Authors, Book.Editors, Source.Title)
+NoPunc$Article <- Raw$Article
+NoPunc_Annot <- merge(NoPunc, Raw, by = "Article")
+NoPunc_Annot <- NoPunc_Annot[,-c(6:9)] # drops columns with punctuation
 
-# Convert all months to string value
-NoPunc_Annot_New = NoPunc_Annot %>% mutate(Publication_Month=
-ifelse(Publication_Month == 1 , "JAN",
-ifelse(Publication_Month == "JAN" , "JAN",
-ifelse(Publication_Month == 2 , "FEB",  
-ifelse(Publication_Month == "FEB" , "FEB",
-ifelse(Publication_Month == 3 , "MAR",
-ifelse(Publication_Month == "MAR" , "MAR",
-ifelse(Publication_Month == 4 , "APR",
-ifelse(Publication_Month == "APR" , "APR",
-ifelse(Publication_Month == 5 , "MAY",
-ifelse(Publication_Month == "MAY" , "MAY",
-ifelse(Publication_Month == 6 , "JUN",
-ifelse(Publication_Month == "JUN" , "JUN",
-ifelse(Publication_Month == 7 , "JUL",
-ifelse(Publication_Month == "JUL" , "JUL",
-ifelse(Publication_Month == 8 , "AUG",
-ifelse(Publication_Month == "AUG" , "AUG",
-ifelse(Publication_Month == 9 , "SEP",
-ifelse(Publication_Month == "SEP" , "SEP",
-ifelse(Publication_Month == 10 , "OCT",
-ifelse(Publication_Month == "OCT" , "OCT",
-ifelse(Publication_Month == 11 , "NOV",
-ifelse(Publication_Month == "NOV" , "NOV",
-ifelse(Publication_Month == 12 , "DEC",
-ifelse(Publication_Month == "DEC" , "DEC",
-              "")))))))))))))))))))))))))
+# Write as .csv file and manually clean up / annotate
+# Add Microbe, Topic, and Animal columns (note articles are re-numbered by year)
+write.csv(NoPunc_Annot, "Manual_Clean-up.csv")
+# To the viewer: There is certainly an automated way to do this, but we concluded it was more direct to approach manually based on our expertise. We strongly encourage and welcome recommendations to better automate this process.
+
+Clean <- read.csv(text=getURL("https://raw.githubusercontent.com/ivamp-consortium/ToxiconX_Correspondence/master/Supp_Tab1_Web-of-Science_Clean-Jun22-2019.csv"))
 
 ```
-   
+
+Figure 1a-c
+```{r}
+
+# install.packages("wordcloud")
+library(wordcloud)
+# packageVersion("wordcloud") # v2.6
+
+# Note that words may not show up for a word cloud if RStudio screen is too small (expand manually if 'transformation drops documentstransformation drops documents' error shows up)
+
+# Figure 1a: Microbe categories
+Microbe = wordcloud(Clean$Microbe) 
+Microbe # None category are studies with term 'microb*' that refer to wasp microbracon
+dev.copy(png, "Figure1a_Microbe_140-articles.png")
+dev.off() 
+
+Microbe_only$Topic<-as.character(Microbe_only$Topic)
+# Remove all articles for "none" category
+Microbe_only = subset(Clean, !Microbe=="none") # 14 articles removed (126 remain)
+# Figure 1b: Article topic
+Topic = wordcloud(Microbe_only$Topic, col = "#8D221D") 
+Topic # 90 antimicrobial, 14 symbiosis
+dev.copy(png, "Figure1b_Topic_126-articles.png")
+dev.off() 
+
+(90/126)*100 # 71 % antimicrobial
+(14/126)*100 # 11 % symbiosis
+
+# Figure 1c: Animal of origin
+Animal = wordcloud(Microbe_only$Animal, col = "#8D221D") 
+Animal # 72 are from snakes
+dev.copy(png, "Figure1c_Animal_126-articles.png")
+dev.off() 
+
+(72/126)*100 # 57 % from snakes, 41% from intevertebrates
+
+```
